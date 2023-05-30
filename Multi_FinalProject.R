@@ -15,9 +15,9 @@ glimpse(CancerData)
 # EDA
 
 ## Declare for visibility
-attach(CancerData)
-CancerM <- CancerData[diagnosis=="M",]
-CancerB <- CancerData[diagnosis=="B",]
+attach(CancerData) # detach(CancerData)
+CancerM <- CancerData[CancerData$diagnosis=="M",]
+CancerB <- CancerData[CancerData$diagnosis=="B",]
 meanRange <- 3:12
 seRange <- 13:22
 worstRange <- 23:32
@@ -104,4 +104,8 @@ CancerNormT %>%
 ##### Correlation
 corM <- cor(CancerM[,totalRange])
 corB <- cor(CancerB[,totalRange])
-corM[upper.tri(corM)] %>% abs()
+par(mfrow = c(1,2))
+corM[upper.tri(corM)] %>% abs() %>% hist(main = "cor of M")
+corB[upper.tri(corB)] %>% abs() %>% hist(main = "cor of B")
+# M과 B 둘다 cor는 low한 경향
+
