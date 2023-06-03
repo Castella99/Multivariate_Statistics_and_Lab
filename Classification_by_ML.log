@@ -1,0 +1,82 @@
+Data class distribution  [297 190] 
+
+Classification by SVM
+
+best estimator : {'C': 0.001, 'gamma': 0.001, 'kernel': 'linear'}
+best accuracy : 1.0
+best f1 score : 1.0
+best auroc : 1.0
+
+Test best estimator
+accuracy : 1.0
+precision : 1.0
+recall : 1.0
+f1_score : 1.0
+auroc : 1.0
+[[50  0]
+ [ 0 32]]
+
+Classification by Logistic Regression
+
+best estimator : {'C': 0.001, 'solver': 'lbfgs'}
+best accuracy : 1.0
+best f1 score : 1.0
+best auroc : 1.0
+
+Test best estimator
+accuracy : 1.0
+precision : 1.0
+recall : 1.0
+f1_score : 1.0
+auroc : 1.0
+[[50  0]
+ [ 0 32]]
+
+Classification by K-Nearst Neighbors
+
+best estimator : {'n_neighbors': 3}
+best accuracy : 1.0
+best f1 score : 1.0
+best auroc : 1.0
+
+Test best estimator
+accuracy : 1.0
+precision : 1.0
+recall : 1.0
+f1_score : 1.0
+auroc : 1.0
+[[50  0]
+ [ 0 32]]
+
+Classification by Random Forest
+
+best estimator : {'criterion': 'gini', 'max_features': 'sqrt'}
+best accuracy : 1.0
+best f1 score : 1.0
+best auroc : 1.0
+
+Test best estimator
+accuracy : 1.0
+precision : 1.0
+recall : 1.0
+f1_score : 1.0
+auroc : 1.0
+[[50  0]
+ [ 0 32]]
+
+Classification by Gaussian Naive Bayes
+
+best estimator : {'priors': None, 'var_smoothing': 1e-09}
+best accuracy : 1.0
+best f1 score : 1.0
+best auroc : 1.0
+
+Test best estimator
+accuracy : 1.0
+precision : 1.0
+recall : 1.0
+f1_score : 1.0
+auroc : 1.0
+[[50  0]
+ [ 0 32]]
+

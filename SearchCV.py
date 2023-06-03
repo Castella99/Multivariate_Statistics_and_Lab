@@ -133,7 +133,7 @@ class GridSearchCV_test :
         print()
     
     def predict(self) :
-        print('\nTest best estimator')
+        print('Test best estimator')
         x_test = self.best_scaler.transform(self.x_test)
         
         if self.compressor != None :
@@ -146,3 +146,4 @@ class GridSearchCV_test :
         print("f1_score :", f1_score(self.y_test, y_pred, zero_division=0))
         print("auroc :", roc_auc_score(self.y_test, y_pred))
         print(confusion_matrix(self.y_test, y_pred))
+        print()
