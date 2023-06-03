@@ -6,9 +6,6 @@ from SearchCV import GridSearchCV_test
 
 from sklearn.preprocessing import StandardScaler
 
-from sklearn.decomposition import PCA, FastICA
-from sklearn.manifold import TSNE
-
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
@@ -24,7 +21,6 @@ df.drop("id", axis=1, inplace=True)
 df.loc[df['diagnosis']=="M", "diagnosis"] = 1
 df.loc[df['diagnosis']=="B", "diagnosis"] = 0
 df
-
 # %% [markdown]
 # 데이터 분해
 
