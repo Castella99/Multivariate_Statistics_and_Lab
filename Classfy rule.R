@@ -26,11 +26,12 @@ biotools::boxM(CancerDataRm_norm[,totalRange], CancerDataRm[,2])
 
 # CancerDataRm_normalized.csv을
 # CancerDataRm_norm 이라는 이름으로 저장한 상태에서 사용해야함.
-ECM_rule_for_normalized <- function(x, log.p = 0.4467) {
-    mu_M = CancerDataRm_norm[CancerDataRm$diagnosis=="M",totalRange] %>% apply(., 2, mean)
-    sigma_M = CancerDataRm_norm[CancerDataRm$diagnosis=="M",totalRange] %>% cov()
-    mu_B = CancerDataRm_norm[CancerDataRm$diagnosis=="B",totalRange] %>% apply(., 2, mean)
-    sigma_B = CancerDataRm_norm[CancerDataRm$diagnosis=="B",totalRange] %>% cov()
+ECM_rule_for_normalized <- function(x, inputdat = CancerDataRm_norm) {
+    totalRange = 3:32
+    mu_M = inputdat[inputdat$diagnosis=="M",totalRange] %>% apply(., 2, mean)
+    sigma_M = inputdat[inputdat$diagnosis=="M",totalRange] %>% cov()
+    mu_B = inputdat[inputdat$diagnosis=="B",totalRange] %>% apply(., 2, mean)
+    sigma_B = inputdat[inputdat$diagnosis=="B",totalRange] %>% cov()
     
     temp1 = log(base::det(sigma_M)/base::det(sigma_B))
     temp2 = (solve(sigma_M) - solve(sigma_B))
