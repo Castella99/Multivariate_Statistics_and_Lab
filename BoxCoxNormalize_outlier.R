@@ -66,13 +66,28 @@ CancerM_rm_norm <- apply(CancerM_rm[,totalRange], 2, function(x){
         forecast::BoxCox(x, lambda)
     }
 })
+CancerM_rm_norm_transformtype <- apply(CancerM_rm[,totalRange], 2, function(x){
+    # case 1. yjPower
+    if(sum(x < 0) > 0){
+        temp <- boxCox(x~1, family = "yjPower")
+        lambda <- temp$x[which.max(temp$y)]
+        c("yj", lambda)
+    } 
+    # case 2. Just BoxCox
+    else {
+        temp <- boxCox(x~1)
+        lambda <- temp$x[which.max(temp$y)]
+        c("bc", lambda)
+    }
+})
+
 
 # 2. nortest
 CancerM_rm_normTest <- apply(CancerM_rm_norm, 2, function(x){
     shapiro.test(x)$p.value
 })
 CancerM_rm_normTest %>% hist()
-CancerM_rm_normTest %>% mean()
+CancerM_rm_normTest %>% sort() %>% head()
 which(CancerM_rm_normTest < 0.05, arr.ind = T)
 # 모든 transform의 p.value가 크게 나왔으면 좋았겠지만,
 # 굳이 억지로 그렇게 할 필요는 없어보임(해석의 문제라던지, 과적합이라던지)
@@ -94,14 +109,29 @@ CancerB_rm_norm <- apply(CancerB_rm[,totalRange], 2, function(x){
         forecast::BoxCox(x, lambda)
     }
 })
+CancerB_rm_norm_transformtype <- apply(CancerB_rm[,totalRange], 2, function(x){
+    # case 1. yjPower
+    if(sum(x <= 0) >= 0){
+        temp <- boxCox(x~1, family = "yjPower")
+        lambda <- temp$x[which.max(temp$y)]
+        c("yj", lambda)
+    } 
+    # case 2. Just BoxCox
+    else {
+        temp <- boxCox(x~1)
+        lambda <- temp$x[which.max(temp$y)]
+        c("bc", lambda)
+    }
+})
 
 # 2. nortest
 CancerB_rm_normTest <- apply(CancerB_rm_norm, 2, function(x){
     shapiro.test(x)$p.value
 })
 CancerB_rm_normTest %>% hist()
-CancerB_rm_normTest %>% mean()
-which(CancerB_rm_normTest < 0.05, arr.ind = T)
+CancerB_rm_normTest %>% sort() %>% head() %>% round(3)
+paste0("Normal이 아닌 변수의 갯수 : ",
+       sum(CancerB_rm_normTest<0.05) )
 # 0.05가 안되는게 훨씬 더 많음. 
 # B에 대해서 power-based normalize는 욕심을 버려야할 듯 함.
 
@@ -110,6 +140,8 @@ which(CancerB_rm_normTest < 0.05, arr.ind = T)
 CancerDataRm_norm <- CancerDataRm
 CancerDataRm_norm[,totalRange] <- rbind(CancerM_rm_norm, CancerB_rm_norm) %>%
     as.data.frame(CancerDataRm_norm)
+# write.csv(CancerDataRm_norm, file = "C:/Users/p5682/Documents/Multivariate_Statistics_and_Lab/CancerDataRm_normalized.csv", row.names = F)
+
 glimpse(CancerDataRm_norm)
 ##################################################
 
