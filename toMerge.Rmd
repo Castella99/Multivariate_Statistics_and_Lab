@@ -2,7 +2,7 @@
 title: "toMerge"
 author: "JeonJunho"
 date: "2023-06-02"
-output: html_document
+output: word_document
 ---
 
 ```{r setup, include=FALSE}
@@ -242,6 +242,40 @@ CancerDataRm_norm <- CancerDataRm
 CancerDataRm_norm[,totalRange] <- rbind(CancerM_rm_norm, CancerB_rm_norm) %>%
     as.data.frame(CancerDataRm_norm)
 # write.csv(CancerDataRm_norm, file = "C:/Users/p5682/Documents/Multivariate_Statistics_and_Lab/CancerDataRm_normalized.csv", row.names = F)
+
+```
+
+----------
+
+
+### 3. 수업 내용을 바탕으로 최적의 ECM_rule을 작성
+
+
+
+$log{\frac{f_{1}}{f_{2}}} \ge log{\frac{p_{2}}{p_{1}}}$
+
+$\log{\frac{f_{1}}{f_{2}}} = -0.5x^\intercal(\Sigma_{1}^{-1} - \Sigma_{2}^{-1})x + (\mu_{1}^\intercal\Sigma_{1}^{-1} - \mu_{2}^\intercal\Sigma_{2}^{-1})x -0.5(\mu_{1}^\intercal\Sigma_{1}^{-1}\mu_{1}-\mu_{2}^\intercal\Sigma_{2}^{-1}\mu_{2})-0.5\log\left(\frac{|\Sigma_{1}|}{|\Sigma_{2}|}\right)$
+
+해당 식을 그대로 구현하였다
+
+```{r, echo=FALSE}
+# dplyr package 필요
+# 기본값으로 CancerDataRm_norm이라는 data.frame을 필요로함.
+ECM_rule_for_normalized <- function(x, inputdat = CancerDataRm_norm) {
+    totalRange = 3:32
+    mu_M = inputdat[inputdat$diagnosis=="M",totalRange] %>% apply(., 2, mean)
+    sigma_M = inputdat[inputdat$diagnosis=="M",totalRange] %>% cov()
+    mu_B = inputdat[inputdat$diagnosis=="B",totalRange] %>% apply(., 2, mean)
+    sigma_B = inputdat[inputdat$diagnosis=="B",totalRange] %>% cov()
+    
+    temp1 = log(base::det(sigma_M)/base::det(sigma_B))
+    temp2 = (solve(sigma_M) - solve(sigma_B))
+    temp3 = (mu_M %*% solve(sigma_M) - mu_B %*% solve(sigma_B))
+    temp4 = (mu_M %*% solve(sigma_M) %*% mu_M  - mu_B %*% solve(sigma_B) %*% mu_B)
+    result = -0.5*x%*%temp2%*%x + temp3 %*% x -0.5*temp4 -0.5*temp1
+    return(result)
+}
+
 
 ```
 
