@@ -76,3 +76,10 @@ paste0("Normal이 아닌 변수의 갯수 : ",
 ## 이전 정규화 코드 : just using forecast::BoxCox
 ## BoxCox의 lambda를 함수 자체에서 auto로 설정시켰었음.
 ## 지금 정규화 코드 : lambda를 car packages의 lambda 구하는 코드와 병행해서 씀.
+CancerData_norm <- CancerData
+CancerData_norm[,totalRange] <- rbind(CancerM_norm, CancerB_norm) %>%
+    as.data.frame(CancerData_norm)
+
+write.csv(CancerData_norm, 
+          file = "C:/Users/p5682/Documents/Multivariate_Statistics_and_Lab/CancerData_normalized.csv", 
+          row.names = F)
