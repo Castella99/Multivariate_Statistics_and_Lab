@@ -1,0 +1,247 @@
+---
+title: "toMerge"
+author: "JeonJunho"
+date: "2023-06-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##### Data Load and Declare its notation
+
+```{r, echo=FALSE,message=FALSE,error=FALSE,warning=FALSE}
+library(tidyverse)
+library(forecast)
+library(GGally)
+library(car)
+# Data Load
+CancerData <- read.csv("C:/Users/p5682/Documents/Multivariate_Statistics_and_Lab/Cancer_data.csv", stringsAsFactors = T)
+CancerData <- CancerData[,-33]
+CancerM <- CancerData[CancerData$diagnosis=="M",]
+CancerB <- CancerData[CancerData$diagnosis=="B",]
+meanRange <- 3:12
+seRange <- 13:22
+worstRange <- 23:32
+totalRange <- 3:32
+variNames <- colnames(CancerData)[meanRange] %>% substr(., 0, nchar(.) -5)
+
+```
+
+수업 시간에 배운 내용을 토대로 분석하고자 하였음.
+수업에서는 MVN인 dataset에 대해 classification을 진행하는 방식을 배웠으므로,
+
+1. 주어진 Dataset이 normal인지 확인
+
+2. 해당 Daset이 normal이 아니면, normalize
+
+3. 수업 내용을 바탕으로 최적 ECM_rule을 작성
+
+4. Cross Validation을 통해 효율성 확인
+
+
+
+### 1. 주어진 Dataset이 normal인지 확인
+
+```{r, echo=FALSE}
+mal.p.value <- c()
+for(i in totalRange){
+    mal.p.value <- c(mal.p.value,
+                     nortest::ad.test(CancerM[,i])$p.value)
+}
+# mal.p.value %>% round(3)
+benign.p.value <- c()
+for(i in totalRange){
+    benign.p.value <- c(benign.p.value,
+                     nortest::ad.test(CancerB[,i])$p.value)
+}
+# benign.p.value %>% round(3)
+CancerNormT <- tibble(
+    variableName = colnames(CancerData[,3:32]),
+    mal.p.value, benign.p.value,
+)
+CancerNormT
+```
+
+정규성 검정의 p.value가 0.05 이상인 variable 확인
+
+```{r, echo=FALSE,message=FALSE}
+###### Visualize Normality Test Result
+CancerNormT %>%
+    pivot_longer(cols = 2:3, names_to = "group",
+                 values_to = "p.value") %>%
+    ggplot(aes(x = p.value, fill = group)) +
+    geom_histogram() +
+    geom_vline(xintercept = 0.05, linetype = "dashed") +
+    facet_grid(~group)
+# 대부분 normal을 따르지 않음.
+CancerNormT %>%
+    pivot_longer(cols = 2:3, names_to = "group",
+                 values_to = "p.value") %>%
+    filter(p.value > 0.05)
+# 애초에 worst는 norm을 기대도 안했음
+# 근데 오히려 normal을 따르는건 worst value임.
+# 357, 212개의 n으로는 정규분포로 근사하기 어림도 없는 분포임을 추론할 수 있음
+
+```
+
+주어진 dataset이 normal을 따르지 않음을 알 수 있다. 따라서, normalize를 한 뒤 classification을 진행하려고 한다.
+
+### 2. 해당 Dataset이 normal이 아니면, normalize(transformation)
+
+자료를 정규화할건데, 대표적 transformation method인 BoxCox-변환을 이용하고자 한다.
+
+forecast packages의 BoxCox() 함수를 사용하였다.
+
+```{r, echo=FALSE,message=FALSE}
+# CancerM에 대해 transformed value
+CancerM_BoxCox <- apply(CancerM[,totalRange], 2, function(x){
+    forecast::BoxCox(x, "auto")
+})
+
+# CancerM에 대해 normal transform 한 다음 p.value
+CancerM_BoxCox_pval <- apply(CancerM_BoxCox, 2, function(x){
+    shapiro.test(x)$p.value
+})
+```
+
+##### After normalize
+
+BoxCox-변환을 통해 정규화 과정을 거친 뒤 실제로 normal을 보이는지 정규성 검정을 진행하였다.
+
+normal과 관련하여 정규성 검정을 할 때, 그 기준은
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3693611/
+이 링크를 참조하여 shapiro.test를 사용하려고 한다.
+
+```{r, message=FALSE,echo=FALSE}
+# 변환했는데도 normal이 아니라고 생각되는 경우를 확인
+head(CancerM_BoxCox_pval[CancerM_BoxCox_pval<0.05]) %>% round(3)
+paste0("Normal이 아닌 변수의 갯수 : ",
+length(CancerM_BoxCox_pval[CancerM_BoxCox_pval<0.05]) )
+notNormIndx <- which(CancerM_BoxCox_pval<0.05)
+```
+
+적지 않은 변수가 BoxCox-변환을 거치고 나서도 normal을 따르지 않음을 알 수 있다.
+
+```{r, message=FALSE,echo=FALSE}
+# 그런 경우의 원본 자료 형태
+# CancerData[,notNormIndx + 2] %>% ggpairs()
+```
+
+해당 변수들의 분포를 확인한 결과, outlier가 존재하는 것처럼 보인다.
+따라서 outlier를 제거한 다음에 다시 정규변환을 거치고자 한다.
+또한, BoxCox-변환은 양수에 대해서만 적용할 수 있으므로, 음수가 존재하는 variable에 대해서는 실수 전체로 확장시킨 변환인 Yeo-Johnson-변환을 적용하고자 한다.
+
+```{r,message=FALSE,echo=FALSE}
+# Outlier 전처리된 자료 불러오기
+CancerDataRm <- read.csv("C:/Users/p5682/Documents/Multivariate_Statistics_and_Lab/Cancer_data_removed_outliers.csv", stringsAsFactors = T)
+colnames(CancerDataRm)[c(1,32)] <- c("id", "diagnosis")
+CancerDataRm <- CancerDataRm[,c(1,32,2:31)]
+CancerM_rm <- CancerDataRm[CancerDataRm$diagnosis == "M",]
+CancerB_rm <- CancerDataRm[CancerDataRm$diagnosis == "B",]
+
+```
+
+```{r,message=FALSE,echo=FALSE,include=FALSE}
+# 1. 변환
+CancerM_rm_norm <- apply(CancerM_rm[,totalRange], 2, function(x){
+    # case 1. yjPower
+    if(sum(x < 0) > 0){
+        temp <- boxCox(x~1, family = "yjPower")
+        lambda <- temp$x[which.max(temp$y)]
+        yjPower(x, lambda)
+    } 
+    # case 2. Just BoxCox
+    else {
+        temp <- boxCox(x~1)
+        lambda <- temp$x[which.max(temp$y)]
+        forecast::BoxCox(x, lambda)
+    }
+})
+CancerM_rm_norm_transformtype <- apply(CancerM_rm[,totalRange], 2, function(x){
+    # case 1. yjPower
+    if(sum(x < 0) > 0){
+        temp <- boxCox(x~1, family = "yjPower")
+        lambda <- temp$x[which.max(temp$y)]
+        c("yj", lambda)
+    } 
+    # case 2. Just BoxCox
+    else {
+        temp <- boxCox(x~1)
+        lambda <- temp$x[which.max(temp$y)]
+        c("bc", lambda)
+    }
+})
+```
+
+```{r,echo=FALSE}
+# 2. nortest
+CancerM_rm_normTest <- apply(CancerM_rm_norm, 2, function(x){
+    shapiro.test(x)$p.value
+})
+CancerM_rm_normTest %>% hist()
+CancerM_rm_normTest %>% sort() %>% head()
+# 모든 transform의 p.value가 크게 나왔으면 좋았겠지만,
+# 굳이 억지로 그렇게 할 필요는 없어보임(해석의 문제라던지, 과적합이라던지)
+# 이정도에서 만족하고자 함.
+
+```
+
+Malignant group(이하 M)에 대해 정규변환을 실시한 결과, 모든 변수가 잘 정규화됐다.
+
+```{r,include=FALSE}
+# ben에 대하여..
+# 1. 변환
+CancerB_rm_norm <- apply(CancerB_rm[,totalRange], 2, function(x){
+    # case 1. yjPower
+    if(sum(x <= 0) >= 0){
+        temp <- boxCox(x~1, family = "yjPower")
+        lambda <- temp$x[which.max(temp$y)]
+        yjPower(x, lambda)
+    } 
+    # case 2. Just BoxCox
+    else {
+        temp <- boxCox(x~1)
+        lambda <- temp$x[which.max(temp$y)]
+        forecast::BoxCox(x, lambda)
+    }
+})
+CancerB_rm_norm_transformtype <- apply(CancerB_rm[,totalRange], 2, function(x){
+    # case 1. yjPower
+    if(sum(x <= 0) >= 0){
+        temp <- boxCox(x~1, family = "yjPower")
+        lambda <- temp$x[which.max(temp$y)]
+        c("yj", lambda)
+    } 
+    # case 2. Just BoxCox
+    else {
+        temp <- boxCox(x~1)
+        lambda <- temp$x[which.max(temp$y)]
+        c("bc", lambda)
+    }
+})
+
+```
+
+```{r,echo=FALSE}
+CancerB_rm_normTest <- apply(CancerB_rm_norm, 2, function(x){
+    shapiro.test(x)$p.value
+})
+CancerB_rm_normTest %>% hist()
+CancerB_rm_normTest %>% sort() %>% head() %>% round(3)
+paste0("Normal이 아닌 변수의 갯수 : ",
+       sum(CancerB_rm_normTest<0.05) )
+```
+
+Benign group(이하 B)에 대해서는 잘 정규화가 되지 않았다. 아무래도 음수인 data에 대해 Boxcox based method를 시도하다보니 잘 적용이 되지 않은 모습이다.
+
+```{r, echo=FALSE,include=FALSE}
+# Data merge
+CancerDataRm_norm <- CancerDataRm
+CancerDataRm_norm[,totalRange] <- rbind(CancerM_rm_norm, CancerB_rm_norm) %>%
+    as.data.frame(CancerDataRm_norm)
+# write.csv(CancerDataRm_norm, file = "C:/Users/p5682/Documents/Multivariate_Statistics_and_Lab/CancerDataRm_normalized.csv", row.names = F)
+
+```
+
