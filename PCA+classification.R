@@ -1,6 +1,7 @@
 rm(list=ls())
 
 getwd()
+
 a = read.csv("Cancer_data_removed_outliers.csv")
 
 library(dplyr)
@@ -23,7 +24,7 @@ pca_cancer<-prcomp(cancer2, center=T, scale=T)
 screeplot(pca_cancer, npcs=30, type="l")
 summary(pca_cancer)
 #Cumulative Proportion 이 85% 이상이 될때까지사용
-#PC5까지 사용 (주성분으로 판단) #원 데이터의 85% 정도를 보존한다고 이해할 수 있다. 
+#PC5까지 사용 #원 데이터의 85% 정도를 보존한다고 이해할 수 있다. 
 
 ##차원 축소된 데이터 생성
 x_pca <- as.data.frame(pca_cancer$x[,1:5])
@@ -38,18 +39,6 @@ View(x_pca)
 
 glimpse(x_pca)
 
-#정규화 가정 후 Classification 진행
-cancerM <- x_pca[x_pca$diag=="M",]
-mpca <- cancerM[,1:5]
-cancerB <- x_pca[x_pca$diag=="B",]
-bpca <- cancerB[,1:5]
-
-mu_M =apply(mpca,2,mean)
-sigma_M = cov(mpca)
-mu_B = apply(bpca,2,mean)
-sigma_B = cov(bpca)
-# X_Mal ~ N(mu_M, sigma_M)을 따른다고 가정.
-# X_Ben ~ N(mu_B, sigma_B)를 따른다고 가정.
 
 
 #p1 <- nrow(cancerM)/nrow(x_pca)
@@ -72,6 +61,24 @@ test=x_pca[-tr_index,]
 
 #다변량 정규분포 따를 때, 공분산 행렬까지 같다고 가정 LDA(Linear discriminant analysis)
 ##LDA
+
+
+#정규화 가정 후 Classification 진행
+cancerM <- x_pca[x_pca$diag=="M",]
+mpca <- cancerM[,1:5]
+cancerB <- x_pca[x_pca$diag=="B",]
+bpca <- cancerB[,1:5]
+
+mu_M =apply(mpca,2,mean)
+sigma_M = cov(mpca)
+mu_B = apply(bpca,2,mean)
+sigma_B = cov(bpca)
+# X_Mal ~ N(mu_M, sigma)을 따른다고 가정.
+# X_Ben ~ N(mu_B, sigma)를 따른다고 가정.
+
+
+
+
 lda.fit <- lda(diag~PC1+PC2+PC3+PC4+PC5, data=train)
 lda.fit
 #Prior probabilities of groups: 확률의 가설을 분석하기 전에 사용
@@ -101,6 +108,23 @@ plot(lda.fit)
 #다변량 정규분포 따를 때 공분산 행렬 다르다고 가정 QDA(quadratic discriminant analysis)
 
 ##QDA
+
+
+#정규화 가정 후 Classification 진행
+cancerM <- x_pca[x_pca$diag=="M",]
+mpca <- cancerM[,1:5]
+cancerB <- x_pca[x_pca$diag=="B",]
+bpca <- cancerB[,1:5]
+
+mu_M =apply(mpca,2,mean)
+sigma_M = cov(mpca)
+mu_B = apply(bpca,2,mean)
+sigma_B = cov(bpca)
+# X_Mal ~ N(mu_M, sigma_M)을 따른다고 가정.
+# X_Ben ~ N(mu_B, sigma_B)를 따른다고 가정.
+
+
+
 qda.fit <- qda(diag~PC1+PC2+PC3+PC4+PC5, data=train)
 qda.fit
 
@@ -121,12 +145,6 @@ sum(tab2[row(tab2)==col(tab2)] / sum(tab2))
 
 #Accuracy가 QDA모형 약 96%로 상당히 높다는 것을 알 수 있다.
 #QDA 방식이 LDA 방식보다 우수하다고 볼 수 있음
-
-
-
-
-
-
 
 
 
