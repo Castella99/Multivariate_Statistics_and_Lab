@@ -196,42 +196,45 @@ kfold_list
 
 ## 이하는 ECM_rule 체크 과정 코드
 # Case1 : Original Data에 대해 ECM 적용
+kfold_list1 = rep(0,10)
 for(i in 1:10){
     temp_fold <- apply(CancerData[folds==i,totalRange], 1, function(x){
         input <- unlist(x)
         ifelse(ECM_rule_for_normalized(x, CancerData[folds!=i,])>=log(p2/p1), "M", "B")
     })
     temp_fold <- factor(temp_fold, levels = c("B", "M"))
-    kfold_list[i] = mean(temp_fold == CancerData$diagnosis[folds==i])
+    kfold_list1[i] = mean(temp_fold == CancerData$diagnosis[folds==i])
 }
-kfold_list
-mean(kfold_list)
+kfold_list1
+mean(kfold_list1)
 # 96%정도로 괜찮은 정답률
 
 # Case2 : Outlier Detection 이후 Data에 대해 ECM 적용
+kfold_list2 = rep(0,10)
 for(i in 1:10){
     temp_fold <- apply(CancerDataRm[folds==i,totalRange], 1, function(x){
         input <- unlist(x)
         ifelse(ECM_rule_for_normalized(x, CancerDataRm[folds!=i,])>=log(p2/p1), "M", "B")
     })
     temp_fold <- factor(temp_fold, levels = c("B", "M"))
-    kfold_list[i] = mean(temp_fold == CancerDataRm$diagnosis[folds==i])
+    kfold_list2[i] = mean(temp_fold == CancerDataRm$diagnosis[folds==i])
 }
-kfold_list
-mean(kfold_list)
+kfold_list2
+mean(kfold_list2)
 # 94%정도로 감소했지만 괜찮은 정답률
 
 # Case3 : Outlier Detection + Normalize 이후 Data에 대해 ECM
+kfold_list3 = rep(0,10)
 for(i in 1:10){
     temp_fold <- apply(CancerDataRm_norm[folds==i,totalRange], 1, function(x){
         input <- unlist(x)
         ifelse(ECM_rule_for_normalized(x, CancerDataRm_norm[folds!=i,])>=log(p2/p1), "M", "B")
     })
     temp_fold <- factor(temp_fold, levels = c("B", "M"))
-    kfold_list[i] = mean(temp_fold == CancerDataRm_norm$diagnosis[folds==i])
+    kfold_list3[i] = mean(temp_fold == CancerDataRm_norm$diagnosis[folds==i])
 }
-kfold_list
-mean(kfold_list)
+kfold_list3
+mean(kfold_list3)
 # 100%정도로 이상한 정답률
 
 # Case 4 : Just Normalize 이후 Data에 대해 ECM
@@ -267,15 +270,25 @@ CancerData_norm <- CancerData
 CancerData_norm[,totalRange] <- rbind(CancerM_norm, CancerB_norm) %>%
     as.data.frame(CancerData_norm)
 
+kfold_list4 = rep(0,10)
 for(i in 1:10){
     temp_fold <- apply(CancerData_norm[folds==i,totalRange], 1, function(x){
         input <- unlist(x)
         ifelse(ECM_rule_for_normalized(x, CancerData_norm[folds!=i,])>=log(p2/p1), "M", "B")
     })
     temp_fold <- factor(temp_fold, levels = c("B", "M"))
-    kfold_list[i] = mean(temp_fold == CancerData_norm$diagnosis[folds==i])
+    kfold_list4[i] = mean(temp_fold == CancerData_norm$diagnosis[folds==i])
 }
-kfold_list
-mean(kfold_list)
+kfold_list4
+mean(kfold_list4)
 # 58% 정도로 처절한 정답률. outlier detection은 의미가 있었던 듯.
 # 위에서 이야기했던 대로, BoxCox가 power transformation이다 보니까 벌어진 일 같음.
+# 다른 ML 분석 방법에서 정확도 100%가 나온것을 보아, power tranformation의 과적합 문제가 아니라
+# 그냥 데이터셋 group의 feature가 너무 명확해서 나온 정확도일 수도 있을 것이라고 생각됨.
+
+# 전체 비교 : 가독성 좋게
+data.frame("ECM_rule_based_on" = c("원본 자료", "이상치 제거한 자료", "이상치 제거 후 정규화한 자료", "이상치 제거 없이 정규화한 자료"),
+           "평균_정답률_kfold" = round(c(mean(kfold_list1),
+                                         mean(kfold_list2),
+                                         mean(kfold_list3),
+                                         mean(kfold_list4)), 3)) %>% DT::datatable()
