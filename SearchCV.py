@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from itertools import product
 import copy
 
@@ -7,17 +8,21 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from sklearn.model_selection import StratifiedKFold, train_test_split
 
 class GridSearchCV_test :
-    def __init__(self, model, dataset, scaler, fold, params, compressor=None, verbose=0) :
+    def __init__(self, model, scaler, fold, params, dataset=None, compressor=None, nested=False, verbose=0) :
         self.model = model
         self.scaler = scaler
         self.fold = fold
         self.params = params
         self.compressor = compressor
-        self.X = dataset[:, 1:]
-        self.y = dataset[:, 0].astype('int')
+        self.dataset = dataset
+        if dataset != None :
+            self.X = dataset[:, 1:]
+            self.y = dataset[:, 0].astype('int')
+        self.x_test = None
         self.best_model = None
         self.best_scaler = None
         self.best_compressor = None
+        self.nested = nested
         self.verbose = verbose
     
     def generate_combinations(self, dct):
@@ -29,7 +34,6 @@ class GridSearchCV_test :
         for selection in product(*values) :
             combination = dict(zip(keys, selection))
             combinations.append(combination)
-
         return combinations
     
     def list_mean(self, lst) :
@@ -38,10 +42,21 @@ class GridSearchCV_test :
         mean = total / count  # 합을 개수로 나누어 평균 계산
         return mean
     
-    def fit(self) :
+    def fit(self, X=None, y=None) :
+        if self.dataset != None :
+            X_data = self.X
+            y_data = self.y
+        elif X is not None and y is not None :
+            X_data = X
+            y_data = y
+        else :
+            raise Exception("dataset doesn't input")
         skf = StratifiedKFold(n_splits=self.fold, shuffle=True, random_state=42)
-        x_train_val, self.x_test, y_train_val, self.y_test = train_test_split(self.X, self.y, test_size=1/(self.fold+1), random_state=42, stratify=self.y)
-        idx_list = list(skf.split(x_train_val, y_train_val))
+        if self.nested == False :
+            x_train_val, self.x_test, y_train_val, self.y_test = train_test_split(X_data, y_data, test_size=1/(self.fold+1), random_state=42, stratify=self.y)
+            idx_list = list(skf.split(x_train_val, y_train_val))
+        else :
+            idx_list = list(skf.split(X_data, y_data))
         
         params = self.generate_combinations(self.params)
         
@@ -62,10 +77,16 @@ class GridSearchCV_test :
                 compressor = copy.deepcopy(self.compressor)
                 model.set_params(**param)
                 
-                x_val = x_train_val[idx_list[j][1]]
-                y_val = y_train_val[idx_list[j][1]]
-                x_train = x_train_val[idx_list[j][0]]
-                y_train = y_train_val[idx_list[j][0]]
+                if self.nested == False :
+                    x_train = x_train_val[idx_list[j][0]]
+                    y_train = y_train_val[idx_list[j][0]]
+                    x_val = x_train_val[idx_list[j][1]]
+                    y_val = y_train_val[idx_list[j][1]]
+                else :
+                    x_train = X_data[idx_list[j][0]]
+                    y_train = y_data[idx_list[j][0]]
+                    x_val = X_data[idx_list[j][1]]
+                    y_val = y_data[idx_list[j][1]]
                 
                 x_train = scaler.fit_transform(x_train)
                 x_val = scaler.transform(x_val)
@@ -132,18 +153,86 @@ class GridSearchCV_test :
         print('best auroc :', best_auroc)
         print()
     
-    def predict(self) :
-        print('Test best estimator')
-        x_test = self.best_scaler.transform(self.x_test)
-        
-        if self.compressor != None :
-            x_test = self.best_compressor.transform(x_test)
+    def predict(self, x_test=None, y_test=None, verbose=False) :
+        if self.x_test is not None :
+            x_test = self.best_scaler.transform(self.x_test)
             
-        y_pred = self.best_model.predict(x_test)
-        print("accuracy :", accuracy_score(self.y_test, y_pred))
-        print("precision :", precision_score(self.y_test, y_pred, zero_division=0))
-        print("recall :", recall_score(self.y_test, y_pred, zero_division=0))
-        print("f1_score :", f1_score(self.y_test, y_pred, zero_division=0))
-        print("auroc :", roc_auc_score(self.y_test, y_pred))
-        print(confusion_matrix(self.y_test, y_pred))
-        print()
+            if self.compressor != None :
+                x_test = self.best_compressor.transform(x_test)
+                
+            y_pred = self.best_model.predict(x_test)
+            
+            if verbose == True :
+                print('Test best estimator')
+                print("accuracy :", accuracy_score(self.y_test, y_pred))
+                print("precision :", precision_score(self.y_test, y_pred, zero_division=0))
+                print("recall :", recall_score(self.y_test, y_pred, zero_division=0))
+                print("f1_score :", f1_score(self.y_test, y_pred, zero_division=0))
+                print("auroc :", roc_auc_score(self.y_test, y_pred))
+                print(confusion_matrix(self.y_test, y_pred))
+                print()
+                
+            return accuracy_score(self.y_test, y_pred), precision_score(self.y_test, y_pred, zero_division=0),\
+                recall_score(self.y_test, y_pred, zero_division=0), f1_score(self.y_test, y_pred, zero_division=0),\
+                    roc_auc_score(self.y_test, y_pred)
+            
+        elif x_test is not None and y_test is not None : 
+            x_test = self.best_scaler.transform(x_test)
+            
+            if self.compressor != None :
+                x_test = self.best_compressor.transform(x_test)
+                
+            y_pred = self.best_model.predict(x_test)
+            
+            if verbose == True :
+                print('Test best estimator')
+                print("accuracy :", accuracy_score(y_test, y_pred))
+                print("precision :", precision_score(y_test, y_pred, zero_division=0))
+                print("recall :", recall_score(y_test, y_pred, zero_division=0))
+                print("f1_score :", f1_score(y_test, y_pred, zero_division=0))
+                print("auroc :", roc_auc_score(y_test, y_pred))
+                print(confusion_matrix(y_test, y_pred))
+                print()
+                
+            return accuracy_score(y_test, y_pred), precision_score(y_test, y_pred, zero_division=0),\
+                recall_score(y_test, y_pred, zero_division=0), f1_score(y_test, y_pred, zero_division=0),\
+                    roc_auc_score(y_test, y_pred)
+            
+        else :
+            raise Exception("dataset doesn't input")
+        
+def nested_k_fold(model, X, y, scaler, fold, params) :
+    print(f'{model.__class__.__name__} Nested K-Fold CV\n')
+    
+    skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+    idx_list = list(skf.split(X, y))
+    
+    result = {'acc' : [],
+                'pre' : [],
+                  'rec' : [],
+                  'f1' : [],
+                  'auc' : []}
+    
+    for k in range(fold) :
+        CV = GridSearchCV_test(model, scaler, fold-1, params, nested=True)
+        
+        x_train = X[idx_list[k][0]]
+        y_train = y[idx_list[k][0]]
+        x_test = X[idx_list[k][1]]
+        y_test = y[idx_list[k][1]]
+        
+        CV.fit(x_train, y_train)
+        acc, pre, rec, f1, auc = CV.predict(x_test, y_test)
+        result['acc'].append(acc)
+        result['pre'].append(pre)
+        result['rec'].append(rec)
+        result['f1'].append(f1)
+        result['auc'].append(auc)
+        
+    print(f'{fold}-Fold Nested Cross-Validation Result')
+    print("accuracy :", CV.list_mean(result['acc']))
+    print("precision :", CV.list_mean(result['pre']))
+    print("recall :", CV.list_mean(result['rec']))
+    print("f1 score :", CV.list_mean(result['f1']))
+    print("auroc :", CV.list_mean(result['auc']))
+    print()
